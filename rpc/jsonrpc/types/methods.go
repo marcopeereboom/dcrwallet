@@ -1023,6 +1023,26 @@ func NewSendToMultiSigCmd(fromaccount string, amount float64, pubkeys []string,
 	}
 }
 
+// SendToTreasuryCmd defines the sendtotreasury JSON-RPC command.
+type SendToTreasuryCmd struct {
+	Amount    float64
+	Comment   *string
+	CommentTo *string
+}
+
+// NewSendToTreasurymd returns a new instance which can be used to issue a
+// sendtotreasury JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewSendToTreasuryCmd(amount float64, comment, commentTo *string) *SendToTreasuryCmd {
+	return &SendToTreasuryCmd{
+		Amount:    amount,
+		Comment:   comment,
+		CommentTo: commentTo,
+	}
+}
+
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
 type SetTxFeeCmd struct {
 	Amount float64 // In DCR
@@ -1360,6 +1380,7 @@ func init() {
 		{"sendmany", (*SendManyCmd)(nil)},
 		{"sendtoaddress", (*SendToAddressCmd)(nil)},
 		{"sendtomultisig", (*SendToMultiSigCmd)(nil)},
+		{"sendtotreasury", (*SendToTreasuryCmd)(nil)},
 		{"settxfee", (*SetTxFeeCmd)(nil)},
 		{"setticketfee", (*SetTicketFeeCmd)(nil)},
 		{"setvotechoice", (*SetVoteChoiceCmd)(nil)},

@@ -60,6 +60,7 @@ var needOwnHarness = map[string]bool{
 	"testListAccounts":     false,
 	"testListUnspent":      false,
 	"testSendToAddress":    false,
+	"testSendToTreasury":   false,
 	"testSendFrom":         false,
 	"testListTransactions": true,
 	"testGetSetRelayFee":   false,
@@ -1223,6 +1224,77 @@ func testSendMany(r *Harness, t *testing.T) {
 	}
 }
 
+func testSendToTreasury(r *Harness, t *testing.T) {
+	// Wallet RPC client
+	wcl := r.WalletRPC
+
+	// Grab a fresh address from the wallet.
+	addr, err := wcl.GetNewAddress("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check balance of default account
+	_, err = wcl.GetBalanceMinConf("default", 1)
+	if err != nil {
+		t.Fatalf("GetBalanceMinConfType failed: %v", err)
+	}
+
+	// SendToTreasury
+	txid, err := wcl.SendToTreasury(1000000)
+	if err != nil {
+		t.Fatalf("SendToTreasury failed: %v", err)
+	}
+
+	//// Generate a single block, in which the transaction the wallet created
+	//// should be found.
+	//_, block, _ := newBestBlock(r, t)
+
+	//if len(block.Transactions()) <= 1 {
+	//	t.Fatalf("expected transaction not included in block")
+	//}
+	//// Confirm that the expected tx was mined into the block.
+	//minedTx := block.Transactions()[1]
+	//txHash := minedTx.Hash()
+	//if *txid != *txHash {
+	//	t.Fatalf("txid's don't match, %v vs %v", txHash, txid)
+	//}
+
+	//// We should now check to confirm that the utxo that wallet used to create
+	//// that sendfrom was properly marked as spent and removed from utxo set. Use
+	//// GetTxOut to tell if the outpoint is spent.
+	////
+	//// The spending transaction has to be off the tip block for the previous
+	//// outpoint to be spent, out of the UTXO set. Generate another block.
+	//_, err = r.GenerateBlock(block.MsgBlock().Header.Height)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+
+	//// Check each PreviousOutPoint for the sending tx.
+	//time.Sleep(1 * time.Second)
+	//// Get the sending Tx
+	//rawTx, err := wcl.GetRawTransaction(txid)
+	//if err != nil {
+	//	t.Fatalf("Unable to get raw transaction %v: %v", txid, err)
+	//}
+	//// txid is rawTx.MsgTx().TxIn[0].PreviousOutPoint.Hash
+
+	//// Check all inputs
+	//for i, txIn := range rawTx.MsgTx().TxIn {
+	//	prevOut := &txIn.PreviousOutPoint
+	//	t.Logf("Checking previous outpoint %v, %v", i, prevOut.String())
+
+	//	// If a txout is spent (not in the UTXO set) GetTxOutResult will be nil
+	//	res, err := wcl.GetTxOut(&prevOut.Hash, prevOut.Index, false)
+	//	if err != nil {
+	//		t.Fatal("GetTxOut failure:", err)
+	//	}
+	//	if res != nil {
+	//		t.Fatalf("Transaction output %v still unspent.", i)
+	//	}
+	//}
+}
 func testListTransactions(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC

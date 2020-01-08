@@ -117,6 +117,7 @@ var handlers = map[string]handler{
 	"sendmany":                {fn: (*Server).sendMany},
 	"sendtoaddress":           {fn: (*Server).sendToAddress},
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
+	"sendtotreasury":          {fn: (*Server).sendToTreasury},
 	"setticketfee":            {fn: (*Server).setTicketFee},
 	"settxfee":                {fn: (*Server).setTxFee},
 	"setvotechoice":           {fn: (*Server).setVoteChoice},
@@ -2997,6 +2998,38 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 		"transaction %v", tx.MsgTx.TxHash().String())
 
 	return result, nil
+}
+
+// sendToTreasury handles a sendtotreasury RPC request by creating a new
+// transaction spending unspent transaction outputs for a wallet to the
+// treasury.  Leftover inputs not sent to the payment address or a fee for the
+// miner are sent back to a new address in the wallet.  Upon success, the TxID
+// for the created transaction is returned.
+func (s *Server) sendToTreasury(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SendToTreasuryCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// Transaction comments are not yet supported.  Error instead of
+	// pretending to save them.
+	if !isNilOrEmpty(cmd.Comment) || !isNilOrEmpty(cmd.CommentTo) {
+		return nil, rpcErrorf(dcrjson.ErrRPCUnimplemented, "transaction comments are unsupported")
+	}
+
+	amt, err := dcrutil.NewAmount(cmd.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that signed integer parameters are positive.
+	if amt < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
+	}
+
+	// sendtotreasury always spends from the default account.
+	return s.sendPairsToTreasury(ctx, w, cmd.Amount, udb.DefaultAccountNum, 1)
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
