@@ -1025,21 +1025,14 @@ func NewSendToMultiSigCmd(fromaccount string, amount float64, pubkeys []string,
 
 // SendToTreasuryCmd defines the sendtotreasury JSON-RPC command.
 type SendToTreasuryCmd struct {
-	Amount    float64
-	Comment   *string
-	CommentTo *string
+	Amount float64
 }
 
 // NewSendToTreasurymd returns a new instance which can be used to issue a
 // sendtotreasury JSON-RPC command.
-//
-// The parameters which are pointers indicate they are optional.  Passing nil
-// for optional parameters will use the default value.
 func NewSendToTreasuryCmd(amount float64, comment, commentTo *string) *SendToTreasuryCmd {
 	return &SendToTreasuryCmd{
-		Amount:    amount,
-		Comment:   comment,
-		CommentTo: commentTo,
+		Amount: amount,
 	}
 }
 

@@ -2501,6 +2501,45 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 	return txSha.String(), nil
 }
 
+// sendAmountToTreasury creates and sends payment transactions to the treasury.
+// It returns the transaction hash in string format upon success All errors are
+// returned in dcrjson.RPCError format
+func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
+	changeAccount := account
+	if s.cfg.CSPPServer != "" {
+		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
+		if err != nil {
+			return "", err
+		}
+		if account == mixAccount {
+			changeAccount, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	outputs := []*wire.TxOut{
+		&wire.TxOut{
+			Value:    int64(amount),
+			PkScript: []byte{0xc1}, //txscript.OP_TADD
+			Version:  wire.DefaultPkScriptVersion,
+		},
+	}
+	txSha, err := w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
+	if err != nil {
+		if errors.Is(err, errors.Locked) {
+			return "", errWalletUnlockNeeded
+		}
+		if errors.Is(err, errors.InsufficientBalance) {
+			return "", rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
+		}
+		return "", err
+	}
+
+	return txSha.String(), nil
+}
+
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
 // index or indices with known script hashes from the transaction. It then
 // construct a transaction with a single P2PKH paying to a specified address.
@@ -3012,24 +3051,18 @@ func (s *Server) sendToTreasury(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
-	// Transaction comments are not yet supported.  Error instead of
-	// pretending to save them.
-	if !isNilOrEmpty(cmd.Comment) || !isNilOrEmpty(cmd.CommentTo) {
-		return nil, rpcErrorf(dcrjson.ErrRPCUnimplemented, "transaction comments are unsupported")
-	}
-
 	amt, err := dcrutil.NewAmount(cmd.Amount)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check that signed integer parameters are positive.
-	if amt < 0 {
+	if amt <= 0 {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
 	}
 
 	// sendtotreasury always spends from the default account.
-	return s.sendPairsToTreasury(ctx, w, cmd.Amount, udb.DefaultAccountNum, 1)
+	return s.sendAmountToTreasury(ctx, w, amt, udb.DefaultAccountNum, 1)
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
