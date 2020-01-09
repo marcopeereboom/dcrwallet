@@ -3045,7 +3045,6 @@ func (s *Server) sendToMultiSig(ctx context.Context, icmd interface{}) (interfac
 // miner are sent back to a new address in the wallet.  Upon success, the TxID
 // for the created transaction is returned.
 func (s *Server) sendToTreasury(ctx context.Context, icmd interface{}) (interface{}, error) {
-	panic("yy")
 	cmd := icmd.(*types.SendToTreasuryCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {

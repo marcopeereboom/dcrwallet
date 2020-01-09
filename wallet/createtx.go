@@ -382,7 +382,7 @@ func (w *Wallet) txToOutputs(ctx context.Context, op errors.Op, outputs []*wire.
 		// doesn't affect the serialize size, so the change amount will still be
 		// valid.
 		if atx.ChangeIndex >= 0 && randomizeChangeIdx {
-			atx.RandomizeChangePosition()
+			//atx.RandomizeChangePosition()
 		}
 
 		// Sign the transaction

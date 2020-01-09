@@ -197,14 +197,26 @@ func (x *xpubAddress) BIP44AccountXpubPath() (xpub *hdkeychain.ExtendedKey, bran
 // addressScript returns an output script paying to address.  This func is
 // always preferred over direct usage of txscript.PayToAddrScript due to the
 // latter failing on unexpected concrete types.
-func addressScript(addr dcrutil.Address) (pkScript []byte, version uint16, err error) {
+func addressScript(addr dcrutil.Address) ([]byte, uint16, error) {
+	var (
+		script, hackedScript []byte
+		err                  error
+	)
 	switch addr := addr.(type) {
 	case V0Scripter:
-		return addr.ScriptV0(), 0, nil
+		script = addr.ScriptV0()
+		err = nil
 	default:
-		pkScript, err = txscript.PayToAddrScript(addr)
-		return pkScript, 0, err
+		script, err = txscript.PayToAddrScript(addr)
 	}
+
+	if err == nil {
+		hackedScript = make([]byte, len(script)+1)
+		hackedScript[0] = txscript.OP_SSTXCHANGE
+		copy(hackedScript[1:], script)
+	}
+
+	return hackedScript, 0, err
 }
 
 func voteRightsScript(addr dcrutil.Address) (script []byte, version uint16, err error) {
