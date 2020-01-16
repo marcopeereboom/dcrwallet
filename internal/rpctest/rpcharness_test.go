@@ -38,6 +38,7 @@ var rpcTestCases = []rpcTestCase{
 	testListUnspent,
 	testSendToAddress,
 	testSendFrom,
+	testSendFromTreasury,
 	testSendMany,
 	testSendToTreasury,
 	testListTransactions,
@@ -63,6 +64,7 @@ var needOwnHarness = map[string]bool{
 	"testSendToAddress":    false,
 	"testSendToTreasury":   false,
 	"testSendFrom":         false,
+	"testSendFromTreasury": false,
 	"testListTransactions": true,
 	"testGetSetRelayFee":   false,
 	"testGetSetTicketFee":  false,
@@ -1295,6 +1297,10 @@ func testSendToTreasury(r *Harness, t *testing.T) {
 	//		t.Fatalf("Transaction output %v still unspent.", i)
 	//	}
 	//}
+}
+
+func testSendFromTreasury(r *Harness, t *testing.T) {
+	t.Logf("testSendFromTreasury implement me")
 }
 func testListTransactions(r *Harness, t *testing.T) {
 	// Wallet RPC client

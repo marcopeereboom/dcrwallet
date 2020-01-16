@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
@@ -114,6 +115,7 @@ var handlers = map[string]handler{
 	"rescanwallet":            {fn: (*Server).rescanWallet},
 	"revoketickets":           {fn: (*Server).revokeTickets},
 	"sendfrom":                {fn: (*Server).sendFrom},
+	"sendfromtreasury":        {fn: (*Server).sendFromTreasury},
 	"sendmany":                {fn: (*Server).sendMany},
 	"sendtoaddress":           {fn: (*Server).sendToAddress},
 	"sendtomultisig":          {fn: (*Server).sendToMultiSig},
@@ -2540,6 +2542,13 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 	return txSha.String(), nil
 }
 
+// sendAmountFromTreasury creates and sends payment transactions from the treasury.
+// It returns the transaction hash in string format upon success All errors are
+// returned in dcrjson.RPCError format
+func (s *Server) sendAmountFromTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
+	return "", fmt.Errorf("sendAmountFromTreasury not yet")
+}
+
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
 // index or indices with known script hashes from the transaction. It then
 // construct a transaction with a single P2PKH paying to a specified address.
@@ -3063,6 +3072,32 @@ func (s *Server) sendToTreasury(ctx context.Context, icmd interface{}) (interfac
 
 	// sendtotreasury always spends from the default account.
 	return s.sendAmountToTreasury(ctx, w, amt, udb.DefaultAccountNum, 1)
+}
+
+// sendFromTreasury handles a sendfromtreasury RPC request by creating a new
+// transaction spending treasury balance.
+// Upon success, the TxID for the created transaction is returned.
+func (s *Server) sendFromTreasury(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.SendFromTreasuryCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	amt, err := dcrutil.NewAmount(cmd.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that signed integer parameters are positive.
+	if amt <= 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
+	}
+
+	// XXX make sure there is enough balance, signature etc etc.
+
+	// sendtotreasury always spends from the default account.
+	return s.sendAmountFromTreasury(ctx, w, amt, udb.DefaultAccountNum, 1)
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
