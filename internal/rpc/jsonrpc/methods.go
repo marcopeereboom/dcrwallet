@@ -2581,9 +2581,9 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	}
 
 	// Estimate fee
-	// For now guess 64 bytes for the in script size. Add proper conts to:
+	// For now guess 74 bytes for the in script size. Add proper conts to:
 	// https://github.com/decred/dcrwallet/blob/master/wallet/txsizes/size.go
-	fee := txsizes.EstimateSerializeSizeFromScriptSizes([]int{64}, /* XXX */
+	fee := txsizes.EstimateSerializeSizeFromScriptSizes([]int{74}, /* XXX */
 		outSize, 0)
 
 	// Create OP_TSPEND
