@@ -2541,19 +2541,19 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 	return txSha.String(), nil
 }
 
-// sendDebitsFromTreasury creates and sends payment transactions from the treasury.
+// sendOutputsFromTreasury creates and sends payment transactions from the treasury.
 // It returns the transaction hash in string format upon success All errors are
 // returned in dcrjson.RPCError format
-func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
+func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
 	var (
 		amount  int64
-		outputs []*wire.TxOut
+		outSize int
 	)
 
 	msgTx := wire.NewMsgTx()
 
 	for _, v := range cmd.Debits {
-		addr, err := dcrutil.DecodeAddress(v.Address, w.ChainParams())
+		addr, err := decodeAddress(v.Address, w.ChainParams())
 		if err != nil {
 			return "", err
 		}
@@ -2576,32 +2576,15 @@ func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, c
 		msgTx.AddTxOut(txOut)
 
 		amount += int64(amt)
+		outSize += len(pkScript)
 	}
 	fee := 100 // XXX calculate this
-
-	_ = outputs
 
 	txIn := wire.NewTxIn(wire.NewOutPoint(&chainhash.Hash{},
 		wire.MaxPrevOutIndex, wire.TxTreeStake),
 		int64(fee)+int64(amount),
 		[]byte{0xc2})
 	msgTx.AddTxIn(txIn)
-	//input := []*wire.TxIn{
-	//	&wire.TxIn{
-	//		// Coinbase transactions have no inputs, so previous outpoint is
-	//		// zero hash and max index.
-	//		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{},
-	//			wire.MaxPrevOutIndex, wire.TxTreeStake), // XXX think about TxTreeStake
-	//		Sequence:    wire.MaxTxInSequenceNum,
-	//		ValueIn:     int64(fee) + int64(amount),
-	//		BlockHeight: wire.NullBlockHeight,
-	//		BlockIndex:  wire.NullBlockIndex,
-	//		//SignatureScript: coinbaseSigScript,
-	//		SignatureScript: []byte{0xc2}, //txscript.OP_TSPEND
-	//	},
-	//}
-	//_ = input
-	//log.Infof("%v", spew.Sdump(cmd))
 
 	n, ok := s.walletLoader.NetworkBackend()
 	if !ok {
@@ -3150,20 +3133,7 @@ func (s *Server) sendFromTreasury(ctx context.Context, icmd interface{}) (interf
 		return nil, errUnloadedWallet
 	}
 
-	//	amt, err := dcrutil.NewAmount(cmd.Amount)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	// Check that signed integer parameters are positive.
-	//	if amt <= 0 {
-	//		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
-	//	}
-	//
-	//	// XXX make sure there is enough balance, signature etc etc.
-
-	// sendtotreasury always spends from the default account.
-	return s.sendDebitsFromTreasury(ctx, w, *cmd)
+	return s.sendOutputsFromTreasury(ctx, w, *cmd)
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
