@@ -37,6 +37,7 @@ import (
 	"github.com/decred/dcrwallet/version"
 	"github.com/decred/dcrwallet/wallet/v3"
 	"github.com/decred/dcrwallet/wallet/v3/txrules"
+	"github.com/decred/dcrwallet/wallet/v3/txsizes"
 	"github.com/decred/dcrwallet/wallet/v3/udb"
 	"golang.org/x/sync/errgroup"
 )
@@ -2547,7 +2548,7 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
 	var (
 		amount  int64
-		outSize int
+		outSize []int
 	)
 
 	msgTx := wire.NewMsgTx()
@@ -2576,16 +2577,23 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 		msgTx.AddTxOut(txOut)
 
 		amount += int64(amt)
-		outSize += len(pkScript)
+		outSize = append(outSize, len(pkScript))
 	}
-	fee := 100 // XXX calculate this
 
+	// Estimate fee
+	// For now guess 64 bytes for the in script size. Add proper conts to:
+	// https://github.com/decred/dcrwallet/blob/master/wallet/txsizes/size.go
+	fee := txsizes.EstimateSerializeSizeFromScriptSizes([]int{64}, /* XXX */
+		outSize, 0)
+
+	// Create OP_TSPEND
 	txIn := wire.NewTxIn(wire.NewOutPoint(&chainhash.Hash{},
 		wire.MaxPrevOutIndex, wire.TxTreeStake),
 		int64(fee)+int64(amount),
 		[]byte{0xc2})
 	msgTx.AddTxIn(txIn)
 
+	// Send to dcrd.
 	n, ok := s.walletLoader.NetworkBackend()
 	if !ok {
 		return "", errNoNetwork
