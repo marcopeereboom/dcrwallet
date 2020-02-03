@@ -1036,16 +1036,25 @@ func NewSendToTreasuryCmd(amount float64, comment, commentTo *string) *SendToTre
 	}
 }
 
+// TreasuryDebits is a tuple to pair amounts and addresses to send from the
+// treasury. It is not embeeded so that we have the type generaly available.
+type TreasuryDebits struct {
+	Address string
+	Amount  float64
+}
+
 // SendFromTreasuryCmd defines the sendfromtreasury JSON-RPC command.
 type SendFromTreasuryCmd struct {
-	Amount float64
+	Key    string
+	Debits []TreasuryDebits
 }
 
 // NewSendFromTreasurymd returns a new instance which can be used to issue a
 // sendfromtreasury JSON-RPC command.
-func NewSendFromTreasuryCmd(amount float64, comment, commentTo *string) *SendFromTreasuryCmd {
+func NewSendFromTreasuryCmd(key string, debits []TreasuryDebits) *SendFromTreasuryCmd {
 	return &SendFromTreasuryCmd{
-		Amount: amount,
+		Key:    key,
+		Debits: debits,
 	}
 }
 

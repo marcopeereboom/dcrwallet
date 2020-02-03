@@ -1302,6 +1302,7 @@ func testSendToTreasury(r *Harness, t *testing.T) {
 func testSendFromTreasury(r *Harness, t *testing.T) {
 	t.Logf("testSendFromTreasury implement me")
 }
+
 func testListTransactions(r *Harness, t *testing.T) {
 	// Wallet RPC client
 	wcl := r.WalletRPC

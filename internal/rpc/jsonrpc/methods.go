@@ -2542,11 +2542,37 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 	return txSha.String(), nil
 }
 
-// sendAmountFromTreasury creates and sends payment transactions from the treasury.
+// sendDebitsFromTreasury creates and sends payment transactions from the treasury.
 // It returns the transaction hash in string format upon success All errors are
 // returned in dcrjson.RPCError format
-func (s *Server) sendAmountFromTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
-	return "", fmt.Errorf("sendAmountFromTreasury not yet")
+func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
+	var amount int64
+
+	for _, v := range cmd.Debits {
+		amt, err := dcrutil.NewAmount(v.Amount)
+		if err != nil {
+			return "", err
+		}
+		amount += int64(amt)
+	}
+	fee := 100 // XXX calculate this
+
+	input := []*wire.TxIn{
+		&wire.TxIn{
+			// Coinbase transactions have no inputs, so previous outpoint is
+			// zero hash and max index.
+			PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{},
+				wire.MaxPrevOutIndex, wire.TxTreeStake), // XXX think about TxTreeStake
+			Sequence:    wire.MaxTxInSequenceNum,
+			ValueIn:     int64(fee) + int64(amount),
+			BlockHeight: wire.NullBlockHeight,
+			BlockIndex:  wire.NullBlockIndex,
+			//SignatureScript: coinbaseSigScript,
+			SignatureScript: []byte{0xc2}, //txscript.OP_TSPEND
+		},
+	}
+	_ = input
+	return "", fmt.Errorf("sendDebitsFromTreasury not yet")
 }
 
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
@@ -3084,20 +3110,20 @@ func (s *Server) sendFromTreasury(ctx context.Context, icmd interface{}) (interf
 		return nil, errUnloadedWallet
 	}
 
-	amt, err := dcrutil.NewAmount(cmd.Amount)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that signed integer parameters are positive.
-	if amt <= 0 {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
-	}
-
-	// XXX make sure there is enough balance, signature etc etc.
+	//	amt, err := dcrutil.NewAmount(cmd.Amount)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	// Check that signed integer parameters are positive.
+	//	if amt <= 0 {
+	//		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative amount")
+	//	}
+	//
+	//	// XXX make sure there is enough balance, signature etc etc.
 
 	// sendtotreasury always spends from the default account.
-	return s.sendAmountFromTreasury(ctx, w, amt, udb.DefaultAccountNum, 1)
+	return s.sendDebitsFromTreasury(ctx, w, *cmd)
 }
 
 // setTicketFee sets the transaction fee per kilobyte added to tickets.
