@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -2557,6 +2558,15 @@ func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, c
 	}
 	fee := 100 // XXX calculate this
 
+	outputs := []*wire.TxOut{
+		&wire.TxOut{
+			Value:    int64(amount),
+			PkScript: []byte{}, // pay to pubkey
+			Version:  wire.DefaultPkScriptVersion,
+		},
+	}
+	_ = outputs
+
 	input := []*wire.TxIn{
 		&wire.TxIn{
 			// Coinbase transactions have no inputs, so previous outpoint is
@@ -2572,6 +2582,8 @@ func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, c
 		},
 	}
 	_ = input
+	log.Infof("%v", spew.Sdump(cmd))
+
 	return "", fmt.Errorf("sendDebitsFromTreasury not yet")
 }
 
