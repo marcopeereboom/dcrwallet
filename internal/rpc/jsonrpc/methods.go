@@ -12,7 +12,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
@@ -20,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/blockchain/stake/v2"
 	blockchain "github.com/decred/dcrd/blockchain/standalone"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -2547,44 +2545,74 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 // It returns the transaction hash in string format upon success All errors are
 // returned in dcrjson.RPCError format
 func (s *Server) sendDebitsFromTreasury(ctx context.Context, w *wallet.Wallet, cmd types.SendFromTreasuryCmd) (string, error) {
-	var amount int64
+	var (
+		amount  int64
+		outputs []*wire.TxOut
+	)
+
+	msgTx := wire.NewMsgTx()
 
 	for _, v := range cmd.Debits {
-		amt, err := dcrutil.NewAmount(v.Amount)
+		addr, err := dcrutil.DecodeAddress(v.Address, w.ChainParams())
 		if err != nil {
 			return "", err
 		}
+		// Create a new script which pays to the provided address.
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"Pay to address script: %v", err)
+		}
+
+		// Convert float to atoms
+		amt, err := dcrutil.NewAmount(v.Amount)
+		if err != nil {
+			return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+				"New amount: %v", err)
+		}
+
+		// Append TxOut
+		txOut := wire.NewTxOut(int64(amt), pkScript)
+		msgTx.AddTxOut(txOut)
+
 		amount += int64(amt)
 	}
 	fee := 100 // XXX calculate this
 
-	outputs := []*wire.TxOut{
-		&wire.TxOut{
-			Value:    int64(amount),
-			PkScript: []byte{}, // pay to pubkey
-			Version:  wire.DefaultPkScriptVersion,
-		},
-	}
 	_ = outputs
 
-	input := []*wire.TxIn{
-		&wire.TxIn{
-			// Coinbase transactions have no inputs, so previous outpoint is
-			// zero hash and max index.
-			PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{},
-				wire.MaxPrevOutIndex, wire.TxTreeStake), // XXX think about TxTreeStake
-			Sequence:    wire.MaxTxInSequenceNum,
-			ValueIn:     int64(fee) + int64(amount),
-			BlockHeight: wire.NullBlockHeight,
-			BlockIndex:  wire.NullBlockIndex,
-			//SignatureScript: coinbaseSigScript,
-			SignatureScript: []byte{0xc2}, //txscript.OP_TSPEND
-		},
-	}
-	_ = input
-	log.Infof("%v", spew.Sdump(cmd))
+	txIn := wire.NewTxIn(wire.NewOutPoint(&chainhash.Hash{},
+		wire.MaxPrevOutIndex, wire.TxTreeStake),
+		int64(fee)+int64(amount),
+		[]byte{0xc2})
+	msgTx.AddTxIn(txIn)
+	//input := []*wire.TxIn{
+	//	&wire.TxIn{
+	//		// Coinbase transactions have no inputs, so previous outpoint is
+	//		// zero hash and max index.
+	//		PreviousOutPoint: *wire.NewOutPoint(&chainhash.Hash{},
+	//			wire.MaxPrevOutIndex, wire.TxTreeStake), // XXX think about TxTreeStake
+	//		Sequence:    wire.MaxTxInSequenceNum,
+	//		ValueIn:     int64(fee) + int64(amount),
+	//		BlockHeight: wire.NullBlockHeight,
+	//		BlockIndex:  wire.NullBlockIndex,
+	//		//SignatureScript: coinbaseSigScript,
+	//		SignatureScript: []byte{0xc2}, //txscript.OP_TSPEND
+	//	},
+	//}
+	//_ = input
+	//log.Infof("%v", spew.Sdump(cmd))
 
-	return "", fmt.Errorf("sendDebitsFromTreasury not yet")
+	n, ok := s.walletLoader.NetworkBackend()
+	if !ok {
+		return "", errNoNetwork
+	}
+	err := n.PublishTransactions(ctx, msgTx)
+	if err != nil {
+		return "", err
+	}
+
+	return msgTx.TxHash().String(), nil
 }
 
 // redeemMultiSigOut receives a transaction hash/idx and fetches the first output
