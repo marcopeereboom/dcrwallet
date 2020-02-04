@@ -8,6 +8,7 @@ package jsonrpc
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -2551,8 +2552,28 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 		outSize []int
 	)
 
-	msgTx := wire.NewMsgTx()
+	// XXX
+	// Add an OP_RETURN with 32 bytes of random data to make the
+	// transaction unique. This will have to change later and become a
+	// reference to a transaction and probably some additional bits.
+	// XXX
+	payload := make([]byte, chainhash.HashSize)
+	_, err := rand.Read(payload)
+	if err != nil {
+		return "", err
+	}
+	builder := txscript.NewScriptBuilder()
+	builder.AddOp(txscript.OP_RETURN)
+	builder.AddData(payload)
+	script, err := builder.Script()
+	if err != nil {
+		return "", err
+	}
 
+	msgTx := wire.NewMsgTx()
+	msgTx.AddTxOut(wire.NewTxOut(0, script))
+
+	// Add payments outputs.
 	for _, v := range cmd.Debits {
 		addr, err := decodeAddress(v.Address, w.ChainParams())
 		if err != nil {
@@ -2598,7 +2619,7 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	if !ok {
 		return "", errNoNetwork
 	}
-	err := n.PublishTransactions(ctx, msgTx)
+	err = n.PublishTransactions(ctx, msgTx)
 	if err != nil {
 		return "", err
 	}
