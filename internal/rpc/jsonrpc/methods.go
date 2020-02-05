@@ -2588,6 +2588,11 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 				"Pay to address script: %v", err)
 		}
 
+		// Prefix pkScript wit OP_TGEN
+		s := make([]byte, len(pkScript)+1)
+		copy(s[1:], pkScript)
+		s[0] = 0xc3 // XXX OP_TGEN
+
 		// Convert float to atoms
 		amt, err := dcrutil.NewAmount(v.Amount)
 		if err != nil {
@@ -2596,7 +2601,7 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 		}
 
 		// Append TxOut
-		txOut := wire.NewTxOut(int64(amt), pkScript)
+		txOut := wire.NewTxOut(int64(amt), s)
 		msgTx.AddTxOut(txOut)
 
 		amount += int64(amt)
@@ -2613,7 +2618,7 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	txIn := wire.NewTxIn(wire.NewOutPoint(&chainhash.Hash{},
 		wire.MaxPrevOutIndex, wire.TxTreeStake),
 		int64(fee)+int64(amount),
-		[]byte{0xc2})
+		[]byte{0xc2 /* OP_TSPEND */})
 	msgTx.AddTxIn(txIn)
 
 	// Send to dcrd.
