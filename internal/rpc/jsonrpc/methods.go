@@ -2560,14 +2560,16 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	payload := make([]byte, chainhash.HashSize)
 	_, err := rand.Read(payload)
 	if err != nil {
-		return "", err
+		return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"Random: %v", err)
 	}
 	builder := txscript.NewScriptBuilder()
 	builder.AddOp(txscript.OP_RETURN)
 	builder.AddData(payload)
 	script, err := builder.Script()
 	if err != nil {
-		return "", err
+		return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"Script: %v", err)
 	}
 
 	msgTx := wire.NewMsgTx()
