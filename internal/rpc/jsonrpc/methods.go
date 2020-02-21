@@ -2525,7 +2525,7 @@ func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amo
 	outputs := []*wire.TxOut{
 		&wire.TxOut{
 			Value:    int64(amount),
-			PkScript: []byte{0xc1}, //txscript.OP_TADD
+			PkScript: []byte{0xc1}, // XXX txscript.PayToTreasury()
 			Version:  wire.DefaultPkScriptVersion,
 		},
 	}
